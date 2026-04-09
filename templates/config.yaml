@@ -1,0 +1,20 @@
+model: MiniMax-M2.7
+temperature: 0.7
+top_p: 0.9
+max_tokens: 4096
+
+tools:
+  enabled: true
+  list:
+    - exec
+    - read
+    - write
+    - edit
+
+context:
+  max_history: 50
+  auto_summarize: true
+
+logging:
+  enabled: true
+  level: info
