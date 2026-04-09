@@ -15,30 +15,37 @@ top -bn1 | grep "Cpu(s)" | awk '{print "CPU: " $2}'
 # 内存使用率
 free -m | grep Mem | awk '{printf "内存: %s/%s MB (%.1f%%)\n", $3, $2, ($3/$2)*100}'
 
-# 磁盘使用率
-df -h | grep -E '/$|/dev' | awk '{print "磁盘: " $1 " " $5 " 使用率"}'
+# 磁盘使用率（排除 /dev/root 只读系统）
+df -h | grep -v "^/dev/root" | awk '$2 ~ /[0-9]+[KMG]/ {print "磁盘: " $1 " " $5 " 使用率"}'
 
-# 服务状态（根据配置的服务列表）
-systemctl status nginx --no-pager 2>/dev/null | head -3
-systemctl status sshd --no-pager 2>/dev/null | head-3
+# 服务状态（OpenWRT设备跳过systemctl）
+if command -v systemctl &>/dev/null; then
+  systemctl status nginx --no-pager 2>/dev/null | head-3
+  systemctl status sshd --no-pager 2>/dev/null | head-3
+fi
 
 # 近期错误日志
-journalctl -n 10 --since "-1 hour" --priority=err 2>/dev/null | tail -5
+journalctl -n 10 --since "-1 hour" --priority=err 2>/dev/null | tail-5
 ```
+
+### 2.1 服务器类型识别
+- **OpenWRT设备（192.168.100.1, 192.168.100.2）**：
+  - 跳过 systemctl 命令（不可用）
+  - `/dev/root 100%` 是正常现象，不告警
+  - 使用 `/overlay` 分区判断实际磁盘使用率
 
 ### 3. 结果汇总
 汇总格式：
 ```
 🛡️ 智维巡检报告 | 2026-04-08 23:00
 
-【192.168.100.1】
+【192.168.100.1】 OpenWRT
 ✅ CPU: 23.5%
 ✅ 内存: 4123/7933 MB (52.0%)
-✅ 磁盘: /dev/sda1 67%
-✅ 服务: nginx 运行中, sshd 运行中
-⚠️ 警告: 内存较昨日增长8%
+✅ 磁盘: /overlay 7%
+✅ 服务: 运行中（OpenWRT嵌入式）
 
-【192.168.100.2】
+【192.168.100.2】 OpenWRT
 ...
 ```
 
@@ -60,7 +67,16 @@ journalctl -n 10 --since "-1 hour" --priority=err 2>/dev/null | tail -5
 ### 手动触发巡检
 `智维 巡检`
 
+## 服务器说明
+
+| IP | 类型 | 说明 |
+|---|---|---|
+| 192.168.100.1 | OpenWRT | 嵌入式系统，/dev/root 100% 正常 |
+| 192.168.100.2 | OpenWRT | 嵌入式系统，/dev/root 100% 正常 |
+| 192.168.100.3 | Proxmox | 虚拟化节点 |
+| 192.168.100.5 | Proxmox | 物理服务器 |
+
 ## 注意事项
 - SSH凭据需要预先配置
-- 服务名称根据实际环境调整
-- 巡检命令兼容CentOS/Ubuntu/Debian
+- OpenWRT设备不适用systemctl
+- /dev/root 100% 不是故障，是OpenWRT只读系统特性
